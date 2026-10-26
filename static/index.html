@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DrawingLab v0.1 · 草图补全与辅助修稿</title>
+  <link rel="stylesheet" href="/static/style.css?v=4.1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brandmark" aria-hidden="true">↗</span><div><strong>Drawing Lab</strong><span>v0.1 · 草图补全与辅助修稿</span></div></div>
+    <div class="header-actions">
+      <span id="model-status" class="model-status"><i></i><span>正在连接本地服务</span></span>
+      <button id="save-project" class="quiet">保存项目</button>
+      <button id="open-project" class="quiet">打开项目</button>
+      <button id="export-png">导出 PNG ↗</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <div class="section-heading"><span>01 / 创作意图</span></div>
+      <label for="prompt" class="field-label">你想画什么？</label>
+      <textarea id="prompt" rows="3" maxlength="2000" spellcheck="false" placeholder="一个歪着头的动漫女孩，保留发型和表情，整理脸部和颈肩线条"></textarea>
+      <p id="prompt-hint" class="hint">描述人物，也可以写下想微调的地方。支持中文。</p>
+      <label class="toggle-row"><span>停笔后自动建议</span><input type="checkbox" id="auto-suggest" checked><span class="switch" aria-hidden="true"></span></label>
+      <button id="suggest-now" class="primary full-width">更新整幅参考 <span>↗</span></button>
+      <div class="button-pair"><button id="next-candidate">换一个</button><button id="pin-reference" aria-pressed="false">固定参考</button></div>
+
+      <div class="section-heading spaced"><span>02 / 辅助修稿</span></div>
+      <div class="button-pair"><button id="correct-now" class="primary">AI 修稿</button><button id="cleanup-now">整理线条</button></div>
+      <div class="task-feedback"><div id="activity" class="activity" role="status" aria-live="polite">连接后即可开始。绘画、撤销和导出始终可用。</div><div id="metrics" class="metrics"></div></div>
+      <label class="toggle-row"><span>叠加 AI 原始参考图</span><input type="checkbox" id="show-ai-original"><span class="switch" aria-hidden="true"></span></label>
+      <div id="ai-original-settings" hidden>
+        <label for="ai-original-opacity" class="range-label"><span>原图叠加深浅</span><output id="ai-original-value">25%</output></label>
+        <input id="ai-original-opacity" type="range" min="5" max="80" step="1" value="25">
+        <p id="ai-original-status" class="hint">生成 AI 修稿或更新参考后，可查看模型的完整构想。</p>
+      </div>
+      <div class="button-pair"><button id="select-region">框选局部</button><button id="clear-region">全图范围</button></div>
+      <div id="selection-info" class="hint">全图轻修 · 0 笔锁定</div>
+      <div class="button-pair"><button id="lock-region">锁定选中笔画</button><button id="unlock-all">全部解锁</button></div>
+      <div id="correction-preview" class="correction-panel" hidden>
+        <label for="correction-strength" class="range-label"><span>修稿幅度</span><output id="correction-value">35%</output></label>
+        <input id="correction-strength" type="range" min="0" max="100" step="1" value="35">
+        <button id="compare-original" class="full-width" title="按住查看原稿">按住对比原稿</button>
+        <div class="button-pair"><button id="apply-correction" class="primary">应用修稿</button><button id="cancel-correction">取消</button></div>
+        <div id="correction-details" class="hint"></div>
+      </div>
+      <p class="hint">AI 提议修形；整理线条只做轻度去抖。预览不会改动原稿，应用后可一次撤销。</p>
+
+      <div class="section-heading spaced"><span>03 / 参考线</span></div>
+      <label for="reference-opacity" class="range-label"><span>参考线深浅</span><output id="opacity-value">10%</output></label>
+      <input type="range" id="reference-opacity" min="3" max="20" step="1" value="10">
+      <label class="toggle-row"><span>显示参考线</span><input type="checkbox" id="show-reference" checked><span class="switch" aria-hidden="true"></span></label>
+      <p class="hint">浅线用于补全。保存和导出只包含已采用的作品，排除未应用的修稿预览。</p>
+
+    </aside>
+
+    <section class="drawing-area" aria-label="绘画工作区">
+      <div class="canvas-toolbar">
+        <div class="tool-group" role="group" aria-label="绘画工具">
+          <button id="tool-pen" class="tool active" aria-pressed="true" title="画笔 B">画笔 <kbd>B</kbd></button>
+          <button id="tool-eraser" class="tool" aria-pressed="false" title="橡皮 E">橡皮 <kbd>E</kbd></button>
+          <button id="tool-select" class="tool" aria-pressed="false" title="框选修稿范围 S">选区 <kbd>S</kbd></button>
+          <span class="separator"></span>
+          <button id="undo" class="icon-button" title="撤销 Ctrl+Z" aria-label="撤销" disabled>↶</button>
+          <button id="redo" class="icon-button" title="重做 Ctrl+Shift+Z" aria-label="重做" disabled>↷</button>
+        </div>
+        <div id="eraser-settings" class="eraser-settings" hidden><label for="eraser-size">大小</label><input id="eraser-size" type="range" min="5" max="100" value="30"><output id="eraser-value">30 px</output></div>
+        <span id="tool-description" class="tool-description">黑色画笔 · 3 px</span>
+      </div>
+
+      <div class="canvas-surround">
+        <div class="canvas-frame">
+          <div id="canvas-stack" class="canvas-stack">
+            <canvas id="ghost" width="768" height="768" aria-hidden="true"></canvas>
+            <canvas id="ink" width="768" height="768" aria-label="绘画画布，768 乘 768 像素"></canvas>
+            <canvas id="ai-original" width="768" height="768" aria-hidden="true"></canvas>
+            <div id="canvas-empty" class="canvas-empty"><span class="empty-line" aria-hidden="true"></span><strong>从一条线开始</strong><span>在左侧写下想法，然后在这里落笔</span></div>
+            <div id="brush-cursor" class="brush-cursor" hidden></div>
+            <div id="selection-box" class="selection-box" hidden></div>
+            <span id="preview-badge" class="preview-badge" hidden>修稿预览 · 尚未应用</span>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-footer"><span id="stroke-count">0 笔</span><span id="reference-state">参考线未显示</span><span>768 × 768</span></div>
+    </section>
+  </main>
+
+  <dialog id="projects-dialog">
+    <div class="dialog-heading"><h2>项目</h2><button id="close-projects" class="icon-button" aria-label="关闭">×</button></div>
+    <p class="hint">保留提示词和全部笔迹，之后继续画。</p>
+    <div id="project-list" class="project-list">正在读取…</div>
+    <div class="dialog-actions"><button id="download-json">保存当前 JSON 到项目</button><button id="import-json">导入 JSON</button></div>
+  </dialog>
+  <input id="json-file" type="file" accept="application/json,.json" hidden>
+  <script src="/static/app.js?v=4.1" defer></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""Local predictive drawing application."""

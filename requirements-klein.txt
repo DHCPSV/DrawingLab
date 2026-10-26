@@ -1,0 +1,11 @@
+# Install with dependencies into a dedicated Klein virtual environment.
+diffusers==0.40.0
+transformers==5.16.1
+accelerate==1.14.0
+huggingface-hub==1.30.0
+tokenizers==0.23.2
+safetensors==0.8.0
+regex==2026.9.3
+click==8.5.0
+typer==0.27.2
+hf-xet==1.6.0
